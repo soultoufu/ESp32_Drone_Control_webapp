@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { SimulatorCommand, DroneState } from '../../types/simulator';
+import { useState, useCallback, useRef } from 'react';
+import type { SimulatorCommand, DroneState } from '../../types/simulator';
 
 export const useDroneSimulator = () => {
     const [state, setState] = useState<DroneState>({
@@ -54,6 +54,9 @@ export const useDroneSimulator = () => {
                         break;
                     case 'turn_right':
                         nextRot[1] = startRot[1] - (progress * (value * Math.PI / 180));
+                        break;
+                    case 'delay':
+                        // Just wait, don't change position
                         break;
                 }
 

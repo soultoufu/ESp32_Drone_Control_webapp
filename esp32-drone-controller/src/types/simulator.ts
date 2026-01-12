@@ -1,4 +1,4 @@
-export type CommandType = 'takeoff' | 'land' | 'move_forward' | 'move_backward' | 'move_left' | 'move_right' | 'move_up' | 'move_down' | 'turn_left' | 'turn_right';
+export type CommandType = 'takeoff' | 'land' | 'move_forward' | 'move_backward' | 'move_left' | 'move_right' | 'move_up' | 'move_down' | 'turn_left' | 'turn_right' | 'delay';
 
 export interface SimulatorCommand {
     type: CommandType;

@@ -1,0 +1,149 @@
+/* CSS 3D Simulator Styles */
+
+.sim-scene-container {
+    width: 100%;
+    height: 100%;
+    background: #111;
+    overflow: hidden;
+    perspective: 1000px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.sim-world {
+    width: 2000px;
+    height: 2000px;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center center;
+    transform-style: preserve-3d;
+    /* Initial Camera View: Isometric */
+    transform: rotateX(60deg) rotateZ(0deg) translateZ(-100px);
+    transition: transform 0.5s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sim-origin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform-style: preserve-3d;
+}
+
+.sim-drone {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    width: 40px;
+    height: 40px;
+    transform-style: preserve-3d;
+    transition: transform 0.1s linear;
+    /* Smooth movement interpolation */
+}
+
+/* Drone Body */
+.drone-body {
+    width: 100%;
+    height: 100%;
+    background: rgba(56, 189, 248, 0.8);
+    border: 2px solid #38bdf8;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+    position: relative;
+    /* Center pivot */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Drone Arms */
+.drone-arm {
+    position: absolute;
+    background: #94a3b8;
+}
+
+.arm-1 {
+    width: 140%;
+    height: 2px;
+    transform: rotate(45deg);
+}
+
+.arm-2 {
+    width: 140%;
+    height: 2px;
+    transform: rotate(-45deg);
+}
+
+/* Rotors */
+.rotor {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    animation: rotor-spin 0.1s linear infinite;
+}
+
+.rotor-fl {
+    top: -10px;
+    left: -10px;
+}
+
+.rotor-fr {
+    top: -10px;
+    right: -10px;
+}
+
+.rotor-bl {
+    bottom: -10px;
+    left: -10px;
+}
+
+.rotor-br {
+    bottom: -10px;
+    right: -10px;
+}
+
+@keyframes rotor-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Shadow for depth perception */
+.drone-shadow {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    filter: blur(4px);
+    transform: translateZ(0);
+    /* Stays on floor */
+    transition: opacity 0.2s, transform 0.1s linear;
+}
+
+.sim-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border-radius: 8px;
+    color: white;
+    font-family: monospace;
+    font-size: 0.8rem;
+    z-index: 100;
+    pointer-events: none;
+}

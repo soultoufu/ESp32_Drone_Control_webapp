@@ -50,30 +50,9 @@ export const initPythonGenerator = () => {
 };
 
 export const generateCode = (workspace: Blockly.Workspace) => {
-    // Add standard imports and telemetry background loop
+    // Add standard imports
     const standardImports = `import drone
 import time
-import _thread
-import json
-
-# Background telemetry reporter
-def telemetry_loop():
-    while True:
-        try:
-            data = {
-                "type": "telemetry",
-                "battery": drone.get_battery(),
-                "height": drone.get_altitude(),
-                "speed": drone.get_speed(),
-                "state": drone.get_state(),
-                "gyro": drone.get_gyro()
-            }
-            print(json.dumps(data))
-        except:
-            pass
-        time.sleep(1)
-
-_thread.start_new_thread(telemetry_loop, ())
 
 `;
     const code = pythonGenerator.workspaceToCode(workspace);
