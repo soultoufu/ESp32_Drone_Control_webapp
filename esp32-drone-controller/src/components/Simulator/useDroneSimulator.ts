@@ -10,7 +10,6 @@ export const useDroneSimulator = () => {
 
     const [isExecuting, setIsExecuting] = useState(false);
     const commandQueue = useRef<SimulatorCommand[]>([]);
-    const currentCommandIndex = useRef(-1);
 
     const executeCommand = useCallback(async (command: SimulatorCommand) => {
         const { type, value = 100 } = command;

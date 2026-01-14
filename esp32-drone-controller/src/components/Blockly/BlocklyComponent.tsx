@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
-import * as En from 'blockly/msg/en';
+import En from 'blockly/msg/en';
 
 // Set the language
 Blockly.setLocale(En);
@@ -135,7 +135,7 @@ export const BlocklyComponent: React.FC<BlocklyComponentProps> = ({
                     drag: true,
                     wheel: true
                 },
-                theme: Blockly.Themes.Dark,
+                theme: 'dark',
                 renderer: 'zelos'
             });
 
