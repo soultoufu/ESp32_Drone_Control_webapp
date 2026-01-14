@@ -1,5 +1,5 @@
-import { pythonGenerator } from 'blockly/python';
 import * as Blockly from 'blockly/core';
+import { pythonGenerator } from 'blockly/python';
 
 // Ensure the generator processes the custom blocks
 export const initPythonGenerator = () => {

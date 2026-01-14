@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
-import En from 'blockly/msg/en';
 
-// Set the language
-Blockly.setLocale(En);
+// Import and set locale
+import * as En from 'blockly/msg/en';
+Blockly.setLocale(En as unknown as { [key: string]: string });
 
 interface BlocklyComponentProps {
     initialXml?: string;
