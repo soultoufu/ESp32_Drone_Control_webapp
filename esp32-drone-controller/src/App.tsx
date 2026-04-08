@@ -1,12 +1,14 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { BlocklyComponent } from './components/Blockly/BlocklyComponent';
 import { defineCustomBlocks } from './components/Blockly/customBlocks';
 import { initPythonGenerator, generateCode } from './components/Blockly/generator';
 import * as Blockly from 'blockly/core';
-import { serialManager } from './utils/SerialManager';
+import { wsManager } from './utils/WebSocketManager';
 import { SimulatorPage } from './SimulatorPage';
 import { useDroneSimulator } from './components/Simulator/useDroneSimulator';
 import { initSimGenerator, generateSimCommands } from './components/Blockly/simGenerator';
+import { ConnectDialog } from './components/ConnectDialog';
+import { TelemetryPanel } from './components/TelemetryPanel';
 import type { SimulatorCommand } from './types/simulator';
 import './index.css';
 
@@ -14,30 +16,81 @@ defineCustomBlocks();
 initPythonGenerator();
 initSimGenerator();
 
+// --- Toast notification types ---
+type ToastLevel = 'info' | 'success' | 'error';
+interface Toast { text: string; kind: ToastLevel }
+
 function App() {
   const [pythonCode, setPythonCode] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Simulator Page State
+  // Simulator state
   const [showSimulator, setShowSimulator] = useState(false);
   const [pendingCommands, setPendingCommands] = useState<SimulatorCommand[]>([]);
 
-  // Store workspace XML for persistence
-  const workspaceXmlRef = useRef<string>('<xml xmlns="http://www.w3.org/1999/xhtml"></xml>');
+  // Connection dialog
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
+
+  // Sidebar tabs
+  const [sidebarTab, setSidebarTab] = useState<'instructions' | 'telemetry'>('instructions');
+
+  // Serial/RPi logs for TelemetryPanel
+  const [serialLogs, setSerialLogs] = useState<string[]>([]);
+
+  // Toast notifications (replaces alert())
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((text: string, kind: ToastLevel = 'info') => {
+    setToast({ text, kind });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  // Workspace XML — persisted to localStorage (Bug 7 fix)
+  // Read directly (not a lazy initializer — useRef doesn't support that)
+  const workspaceXmlRef = useRef<string>(
+    localStorage.getItem('droneWorkspaceXml') || '<xml xmlns="http://www.w3.org/1999/xhtml"></xml>'
+  );
 
   const { state: simState, isExecuting: isSimulating, runSimulation, resetSimulation } = useDroneSimulator();
 
+  // Wire up WebSocketManager callbacks on mount (Bug 8 fix: disconnect detection)
+  useEffect(() => {
+    wsManager.onDisconnect(() => {
+      setIsConnected(false);
+      showToast('Disconnected from Raspberry Pi', 'error');
+    });
+
+    wsManager.onData((line: string) => {
+      setSerialLogs(prev => [...prev.slice(-200), line]);
+    });
+
+    wsManager.onStatus((message: string, level) => {
+      if (level === 'error') {
+        showToast(message, 'error');
+      } else if (level === 'success') {
+        showToast(message, 'success');
+      }
+      // debug/info messages flow to the terminal via onData
+    });
+
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, [showToast]);
+
   const handleXmlChange = useCallback((xml: string) => {
-    // Save the XML whenever the workspace changes
     workspaceXmlRef.current = xml;
+    // Bug 7 fix: persist workspace to localStorage
+    localStorage.setItem('droneWorkspaceXml', xml);
   }, []);
 
   const handleCodeChange = useCallback(() => {
     const workspace = Blockly.getMainWorkspace();
     if (workspace) {
-      const code = generateCode(workspace);
-      setPythonCode(code);
+      setPythonCode(generateCode(workspace));
     }
   }, []);
 
@@ -45,9 +98,7 @@ function App() {
     const workspace = Blockly.getMainWorkspace();
     if (workspace) {
       const commands = generateSimCommands(workspace);
-      // Reset before starting new simulation
       resetSimulation();
-      // Store commands and show simulator page
       setPendingCommands(commands);
       setShowSimulator(true);
     }
@@ -60,36 +111,90 @@ function App() {
 
   const handleConnect = async () => {
     if (isConnected) {
-      await serialManager.disconnect();
+      await wsManager.disconnect();
       setIsConnected(false);
     } else {
-      const success = await serialManager.connect();
-      setIsConnected(success);
+      setShowConnectDialog(true);
     }
+  };
+
+  const handleConnectSuccess = () => {
+    setIsConnected(true);
+    setShowConnectDialog(false);
+    showToast('Connected to Raspberry Pi', 'success');
+    // Switch to telemetry tab so the user can see incoming data
+    setSidebarTab('telemetry');
   };
 
   const handleUpload = async () => {
     if (!isConnected) {
-      alert("Please connect to the drone first!");
+      showToast('Please connect to the Raspberry Pi first.', 'error');
+      return;
+    }
+    if (!pythonCode.trim()) {
+      showToast('No code to upload. Add some blocks first.', 'info');
       return;
     }
 
     setIsUploading(true);
     try {
-      console.log("Uploading code:", pythonCode);
-      await serialManager.uploadCode(pythonCode);
-      alert("Upload Complete! The drone should be executing your code.");
+      await wsManager.uploadCode(pythonCode);
+      showToast('Code uploaded! Running on the drone...', 'success');
     } catch (error) {
-      console.error("Upload failed", error);
-      alert("Upload failed. Check console for details.");
+      console.error('Upload failed', error);
+      showToast('Upload failed. Check the RPi terminal for details.', 'error');
     } finally {
       setIsUploading(false);
     }
   };
 
+  // Toast color map
+  const toastColors: Record<ToastLevel, string> = {
+    info: 'rgba(56,189,248,0.2)',
+    success: 'rgba(74,222,128,0.2)',
+    error: 'rgba(239,68,68,0.2)'
+  };
+  const toastBorderColors: Record<ToastLevel, string> = {
+    info: 'rgba(56,189,248,0.5)',
+    success: 'rgba(74,222,128,0.5)',
+    error: 'rgba(239,68,68,0.5)'
+  };
+  const toastTextColors: Record<ToastLevel, string> = {
+    info: '#7dd3fc',
+    success: '#86efac',
+    error: '#fca5a5'
+  };
+
   return (
     <>
-      {/* Simulator Page - rendered as overlay when active */}
+      {/* Connection dialog */}
+      {showConnectDialog && (
+        <ConnectDialog
+          onSuccess={handleConnectSuccess}
+          onCancel={() => setShowConnectDialog(false)}
+        />
+      )}
+
+      {/* Toast notification (Bug 9 fix: replaces alert()) */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '1rem', right: '1rem', zIndex: 3000,
+          background: toastColors[toast.kind],
+          border: `1px solid ${toastBorderColors[toast.kind]}`,
+          color: toastTextColors[toast.kind],
+          padding: '0.75rem 1.25rem',
+          borderRadius: '8px',
+          backdropFilter: 'blur(8px)',
+          fontSize: '0.9rem',
+          maxWidth: 360,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+          pointerEvents: 'none'
+        }}>
+          {toast.text}
+        </div>
+      )}
+
+      {/* Simulator page */}
       {showSimulator && (
         <SimulatorPage
           state={simState}
@@ -101,12 +206,10 @@ function App() {
         />
       )}
 
-      {/* Main Editor - always rendered but hidden when simulator is active */}
+      {/* Main Editor */}
       <div
         className="app-container"
-        style={{
-          display: showSimulator ? 'none' : undefined
-        }}
+        style={{ display: showSimulator ? 'none' : undefined }}
       >
         <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -114,10 +217,10 @@ function App() {
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button
-              className={`btn ${isConnected ? 'btn-primary' : ''} `}
+              className={`btn ${isConnected ? 'btn-primary' : ''}`}
               onClick={handleConnect}
             >
-              {isConnected ? 'Disconnect 🔌' : 'Connect ESP32 (USB)'}
+              {isConnected ? 'Disconnect 🔌' : 'Connect to RPi 📡'}
             </button>
             <button
               className="btn btn-primary"
@@ -140,34 +243,67 @@ function App() {
           </div>
         </header>
 
-        <div className="sidebar glass-panel">
-          <h3>Instructions</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            1. Connect your ESP32 Drone via USB.
-            <br />
-            2. Click "Connect ESP32".
-            <br />
-            3. Build your flight plan.
-            <br />
-            4. Click "Upload & Run".
-          </p>
+        {/* Sidebar with tabs */}
+        <div className="sidebar glass-panel" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+          {/* Tab headers */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)' }}>
+            {(['instructions', 'telemetry'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setSidebarTab(tab)}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem',
+                  background: sidebarTab === tab ? 'rgba(56,189,248,0.1)' : 'transparent',
+                  border: 'none',
+                  borderBottom: sidebarTab === tab ? '2px solid var(--accent-color)' : '2px solid transparent',
+                  color: sidebarTab === tab ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  textTransform: 'capitalize',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
 
-          <div style={{ marginTop: '2rem' }}>
-            <h4>Status</h4>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: isConnected ? '#4ade80' : '#f87171'
-            }}>
-              <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: isConnected ? '#4ade80' : '#f87171'
-              }} />
-              {isConnected ? 'Device Connected' : 'Disconnected'}
-            </div>
+          {/* Tab content */}
+          <div style={{ flex: 1, overflow: 'hidden', padding: sidebarTab === 'instructions' ? '1rem' : 0 }}>
+            {sidebarTab === 'instructions' ? (
+              <>
+                <h3 style={{ margin: '0 0 0.75rem' }}>Instructions</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                  1. Power on your Raspberry Pi drone and connect to its WiFi network.
+                  <br /><br />
+                  2. Click <strong>"Connect to RPi"</strong> and enter its IP address.
+                  <br /><br />
+                  3. Build your flight plan with blocks.
+                  <br /><br />
+                  4. Click <strong>"Upload &amp; Run"</strong> to send and execute.
+                  <br /><br />
+                  5. Use <strong>"Test Virtual"</strong> to simulate without hardware.
+                </p>
+
+                <div style={{ marginTop: '1.5rem' }}>
+                  <h4 style={{ margin: '0 0 0.5rem' }}>Status</h4>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    color: isConnected ? '#4ade80' : '#f87171'
+                  }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      backgroundColor: isConnected ? '#4ade80' : '#f87171',
+                      boxShadow: isConnected ? '0 0 6px #4ade80' : 'none'
+                    }} />
+                    {isConnected ? 'Connected to RPi' : 'Disconnected'}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <TelemetryPanel logs={serialLogs} />
+            )}
           </div>
         </div>
 
@@ -190,7 +326,7 @@ function App() {
             MicroPython Preview
           </div>
           <pre style={{ margin: 0, padding: '1rem', overflow: 'auto', flex: 1 }}>
-            {pythonCode || "# Drag blocks to generate code..."}
+            {pythonCode || '# Drag blocks to generate code...'}
           </pre>
         </div>
       </div>

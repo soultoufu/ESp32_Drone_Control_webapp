@@ -4,14 +4,15 @@ export const Scene = () => {
     return (
         <>
             {/* Floor Grid */}
+            {/* Bug 12 fix: dark grid colors to match app theme */}
             <Grid
                 infiniteGrid
                 fadeDistance={50}
                 fadeStrength={5}
                 cellSize={1}
                 sectionSize={5}
-                sectionColor="#94a3b8"
-                cellColor="#cbd5e1"
+                sectionColor="#334155"
+                cellColor="#1e293b"
             />
 
             {/* Origin Marker */}
@@ -23,7 +24,7 @@ export const Scene = () => {
             {/* Ground Plane (for shadows - slightly visible) */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
                 <planeGeometry args={[100, 100]} />
-                <meshStandardMaterial color="#e2e8f0" opacity={0.5} transparent />
+                <meshStandardMaterial color="#0f172a" opacity={0.6} transparent />
             </mesh>
         </>
     );

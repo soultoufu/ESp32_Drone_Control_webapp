@@ -13,7 +13,7 @@ interface Props {
 
 export const SimulatorPanel3D: React.FC<Props> = ({ state, isExecuting, onReset }) => {
     return (
-        <div style={{ width: '100%', height: '100%', position: 'relative', background: '#f0f4f8' }}>
+        <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0a0a0f' }}>
             {/* HUD / Overlay Controls */}
             <div style={{
                 position: 'absolute',
@@ -42,8 +42,9 @@ export const SimulatorPanel3D: React.FC<Props> = ({ state, isExecuting, onReset 
             {/* 3D Canvas */}
             <Canvas shadows>
                 <PerspectiveCamera makeDefault position={[3, 3, 3]} />
+                {/* Bug 10 fix: no target prop — defaults to [0,0,0] (the launch pad).
+                    Previously passing state.position caused jarring camera jumps on every frame. */}
                 <OrbitControls
-                    target={[state.position[0], state.position[1], state.position[2]]}
                     enableDamping
                     dampingFactor={0.05}
                 />

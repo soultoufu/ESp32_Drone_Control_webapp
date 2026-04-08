@@ -53,7 +53,7 @@ export const TelemetryPanel = ({ logs }: TelemetryPanelProps) => {
                     fontWeight: 'bold',
                     background: 'rgba(0,0,0,0.1)'
                 }}>
-                    Serial Terminal
+                    RPi Terminal
                 </div>
                 <div
                     ref={scrollRef}

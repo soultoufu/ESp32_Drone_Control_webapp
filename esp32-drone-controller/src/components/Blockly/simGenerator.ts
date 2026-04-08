@@ -1,36 +1,38 @@
 import * as Blockly from 'blockly/core';
 import type { SimulatorCommand } from '../../types/simulator';
 
-// This generator creates simulator commands by parsing the workspace blocks directly
-// instead of using Blockly's JavaScript generator (which has module resolution issues)
-
 export const initSimGenerator = () => {
-    // No initialization needed - we parse blocks directly
     console.log('Simulator command generator initialized');
 };
 
+// Bug 4 fix: refactored into a reusable chain walker so loop body blocks
+// can be parsed with the same logic as top-level sequences.
+function parseBlockChain(block: Blockly.Block | null): SimulatorCommand[] {
+    const commands: SimulatorCommand[] = [];
+    let current: Blockly.Block | null = block;
+    while (current) {
+        const parsed = parseBlock(current);
+        if (Array.isArray(parsed)) {
+            commands.push(...parsed);
+        } else if (parsed) {
+            commands.push(parsed);
+        }
+        current = current.getNextBlock();
+    }
+    return commands;
+}
+
 export const generateSimCommands = (workspace: Blockly.Workspace): SimulatorCommand[] => {
     const commands: SimulatorCommand[] = [];
-
-    // Get all top-level blocks in order
     const topBlocks = workspace.getTopBlocks(true);
-
     for (const block of topBlocks) {
-        // Walk through the block chain
-        let currentBlock: Blockly.Block | null = block;
-        while (currentBlock) {
-            const command = parseBlock(currentBlock);
-            if (command) {
-                commands.push(command);
-            }
-            currentBlock = currentBlock.getNextBlock();
-        }
+        commands.push(...parseBlockChain(block));
     }
-
     return commands;
 };
 
-function parseBlock(block: Blockly.Block): SimulatorCommand | null {
+// Returns a single command, an array of commands (for loops), or null.
+function parseBlock(block: Blockly.Block): SimulatorCommand | SimulatorCommand[] | null {
     const type = block.type;
 
     switch (type) {
@@ -39,6 +41,10 @@ function parseBlock(block: Blockly.Block): SimulatorCommand | null {
 
         case 'drone_land':
             return { type: 'land' };
+
+        // Bug 5 fix: emergency_stop was missing and silently ignored
+        case 'drone_emergency_stop':
+            return { type: 'emergency_stop' };
 
         case 'drone_move': {
             const direction = block.getFieldValue('DIRECTION') as string;
@@ -62,11 +68,7 @@ function parseBlock(block: Blockly.Block): SimulatorCommand | null {
             const degreesBlock = block.getInputTargetBlock('DEGREES');
             const degrees = degreesBlock ? Number(degreesBlock.getFieldValue('NUM')) || 90 : 90;
 
-            if (direction === 'cw') {
-                return { type: 'turn_right', value: degrees };
-            } else {
-                return { type: 'turn_left', value: degrees };
-            }
+            return { type: direction === 'cw' ? 'turn_right' : 'turn_left', value: degrees };
         }
 
         case 'drone_delay': {
@@ -75,8 +77,32 @@ function parseBlock(block: Blockly.Block): SimulatorCommand | null {
             return { type: 'delay', value: duration * 1000 };
         }
 
+        // Bug 4 fix: handle repeat loop — unroll exactly N times
+        case 'controls_repeat_ext': {
+            const timesBlock = block.getInputTargetBlock('TIMES');
+            const times = timesBlock ? Math.max(0, Math.round(Number(timesBlock.getFieldValue('NUM')) || 0)) : 0;
+            const bodyBlock = block.getInputTargetBlock('DO');
+            const bodyCommands = parseBlockChain(bodyBlock);
+            const result: SimulatorCommand[] = [];
+            for (let i = 0; i < times; i++) {
+                result.push(...bodyCommands);
+            }
+            return result;
+        }
+
+        // Bug 4 fix: while/until — unroll up to 10 iterations as a preview
+        case 'controls_whileUntil': {
+            console.warn('[SimGenerator] controls_whileUntil cannot be fully simulated. Showing up to 10 iterations.');
+            const bodyBlock = block.getInputTargetBlock('DO');
+            const bodyCommands = parseBlockChain(bodyBlock);
+            const result: SimulatorCommand[] = [];
+            for (let i = 0; i < 10; i++) {
+                result.push(...bodyCommands);
+            }
+            return result;
+        }
+
         default:
-            // Unknown block type, skip it
             return null;
     }
 }
