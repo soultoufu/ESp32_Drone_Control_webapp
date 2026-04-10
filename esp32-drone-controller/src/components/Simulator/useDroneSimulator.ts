@@ -102,7 +102,7 @@ export const useDroneSimulator = () => {
                     ...prev,
                     position: nextPos,
                     rotation: nextRot,
-                    isFlying: type === 'land' ? progress < 0.95 : type === 'emergency_stop' ? false : true
+                    isFlying: type === 'land' ? progress < 0.95 : true
                 }));
 
                 if (progress < 1) {
