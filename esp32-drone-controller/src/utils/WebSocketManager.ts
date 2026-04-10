@@ -9,6 +9,7 @@ export class WebSocketManager {
     private onDataCallback: ((data: string) => void) | null = null;
     private onDisconnectCallback: (() => void) | null = null;
     private onStatusCallback: ((message: string, level: 'info' | 'error' | 'success' | 'debug') => void) | null = null;
+    private onBinaryCallback: ((data: Uint8Array) => void) | null = null;
 
     onData(callback: (data: string) => void) {
         this.onDataCallback = callback;
@@ -20,6 +21,10 @@ export class WebSocketManager {
 
     onStatus(callback: (message: string, level: 'info' | 'error' | 'success' | 'debug') => void) {
         this.onStatusCallback = callback;
+    }
+
+    onBinary(callback: (data: Uint8Array) => void) {
+        this.onBinaryCallback = callback;
     }
 
     /**
@@ -75,8 +80,17 @@ export class WebSocketManager {
                 this.onDisconnectCallback?.();
             };
 
+            this.ws.binaryType = 'arraybuffer';
             this.ws.onmessage = (event: MessageEvent) => {
-                this.handleMessage(event.data as string);
+                if (event.data instanceof ArrayBuffer) {
+                    this.onBinaryCallback?.(new Uint8Array(event.data));
+                } else if (event.data instanceof Blob) {
+                    event.data.arrayBuffer().then(buf => {
+                        this.onBinaryCallback?.(new Uint8Array(buf));
+                    });
+                } else {
+                    this.handleMessage(event.data as string);
+                }
             };
         });
     }
@@ -100,6 +114,13 @@ export class WebSocketManager {
     /** Send a single drone command (immediate execution on RPi). */
     sendCommand(action: 'takeoff' | 'land' | 'emergency_stop' | 'move' | 'rotate' | 'delay', params?: Record<string, unknown>): void {
         this.send({ type: 'command', action, ...params } as ClientMessage);
+    }
+
+    /** Send a binary frame (MSP packet) to the bridge. */
+    sendBinary(data: Uint8Array): void {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(data);
+        }
     }
 
     /** Low-level string write — sends raw string over WebSocket (for interface compatibility). */

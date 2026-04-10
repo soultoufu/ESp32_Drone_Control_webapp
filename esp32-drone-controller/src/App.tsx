@@ -4,6 +4,7 @@ import { defineCustomBlocks } from './components/Blockly/customBlocks';
 import { initPythonGenerator, generateCode } from './components/Blockly/generator';
 import * as Blockly from 'blockly/core';
 import { wsManager } from './utils/WebSocketManager';
+import { flightExecutor } from './utils/FlightExecutor';
 import { SimulatorPage } from './SimulatorPage';
 import { useDroneSimulator } from './components/Simulator/useDroneSimulator';
 import { initSimGenerator, generateSimCommands } from './components/Blockly/simGenerator';
@@ -124,25 +125,36 @@ function App() {
     showToast('Connected to Raspberry Pi', 'success');
     // Switch to telemetry tab so the user can see incoming data
     setSidebarTab('telemetry');
+    // Wire binary MSP responses to telemetry display and start polling
+    flightExecutor.onTelemetry((data) => {
+      setSerialLogs(prev => [...prev.slice(-200), JSON.stringify(data)]);
+    });
+    flightExecutor.startTelemetryPolling();
   };
 
-  const handleUpload = async () => {
+  const handleExecute = async () => {
     if (!isConnected) {
       showToast('Please connect to the Raspberry Pi first.', 'error');
       return;
     }
-    if (!pythonCode.trim()) {
-      showToast('No code to upload. Add some blocks first.', 'info');
+    const workspace = Blockly.getMainWorkspace();
+    if (!workspace) return;
+    const commands = generateSimCommands(workspace);
+    if (commands.length === 0) {
+      showToast('No blocks to execute. Add some blocks first.', 'info');
       return;
     }
 
     setIsUploading(true);
+    showToast('Executing flight plan...', 'info');
     try {
-      await wsManager.uploadCode(pythonCode);
-      showToast('Code uploaded! Running on the drone...', 'success');
+      await flightExecutor.execute(commands, (msg) => {
+        setSerialLogs(prev => [...prev.slice(-200), msg]);
+      });
+      showToast('Flight plan complete.', 'success');
     } catch (error) {
-      console.error('Upload failed', error);
-      showToast('Upload failed. Check the RPi terminal for details.', 'error');
+      console.error('Execution failed', error);
+      showToast('Execution failed. Check the telemetry log.', 'error');
     } finally {
       setIsUploading(false);
     }
@@ -224,12 +236,21 @@ function App() {
             </button>
             <button
               className="btn btn-primary"
-              onClick={handleUpload}
+              onClick={handleExecute}
               disabled={!isConnected || isUploading}
               style={{ opacity: (!isConnected || isUploading) ? 0.5 : 1 }}
             >
-              {isUploading ? 'Uploading... ⏳' : 'Upload & Run 🚀'}
+              {isUploading ? 'Executing... ⏳' : 'Execute 🚀'}
             </button>
+            {isUploading && (
+              <button
+                className="btn"
+                onClick={() => { flightExecutor.abort(); setIsUploading(false); }}
+                style={{ background: 'rgba(239,68,68,0.3)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}
+              >
+                Abort ✋
+              </button>
+            )}
             <button
               className="btn"
               onClick={handleSimulate}
@@ -281,7 +302,7 @@ function App() {
                   <br /><br />
                   3. Build your flight plan with blocks.
                   <br /><br />
-                  4. Click <strong>"Upload &amp; Run"</strong> to send and execute.
+                  4. Click <strong>"Execute"</strong> to send the flight plan via MSP.
                   <br /><br />
                   5. Use <strong>"Test Virtual"</strong> to simulate without hardware.
                 </p>
