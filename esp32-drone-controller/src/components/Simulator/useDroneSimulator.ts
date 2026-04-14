@@ -21,8 +21,16 @@ export const useDroneSimulator = () => {
         const { type, value = 100 } = command;
         const distanceMeter = value / 100; // Convert cm to meters
 
+        // Time scaling factor — controls how fast sim time passes vs Blockly time.
+        // A factor of 4 means 10s in Blockly ≈ 2.5s in the simulator.
+        const SIM_TIME_SCALE = 4;
+
         return new Promise<void>((resolve) => {
-            const duration = 1000; // ms per command
+            // For delay commands, value is already in ms from simGenerator.
+            // For movement commands, scale duration proportionally to distance.
+            const duration = type === 'delay'
+                ? value / SIM_TIME_SCALE
+                : Math.max(300, (distanceMeter * 1000) / SIM_TIME_SCALE);
 
             // Bug 1 fix: read from refs, not from stale closure over state
             const startPos = [...positionRef.current] as [number, number, number];
