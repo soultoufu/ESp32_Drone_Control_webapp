@@ -18,8 +18,14 @@ export const useDroneSimulator = () => {
 
     // Bug 1 fix: no deps — reads from refs which are always current
     const executeCommand = useCallback(async (command: SimulatorCommand) => {
-        const { type, value = 100 } = command;
-        const distanceMeter = value / 100; // Convert cm to meters
+        const { type, value = 2 } = command;
+
+        // Movement blocks say "Move for N seconds" — value IS a duration in seconds.
+        // Convert to metres using a fixed cruise speed so all directions are consistent:
+        //   "move forward 5" = "move left 5" = 5 m (5 s × 1 m/s).
+        // Yaw uses value as degrees; delay uses value as ms — neither uses distanceMeter.
+        const DRONE_SPEED = 1; // m/s cruise speed
+        const distanceMeter = value * DRONE_SPEED;
 
         // Time scaling factor — controls how fast sim time passes vs Blockly time.
         // A factor of 4 means 10s in Blockly ≈ 2.5s in the simulator.

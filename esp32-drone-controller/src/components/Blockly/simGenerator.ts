@@ -49,7 +49,9 @@ function parseBlock(block: Blockly.Block): SimulatorCommand | SimulatorCommand[]
         case 'drone_move': {
             const direction = block.getFieldValue('DIRECTION') as string;
             const durationBlock = block.getInputTargetBlock('DURATION');
-            const duration = durationBlock ? Number(durationBlock.getFieldValue('NUM')) || 100 : 100;
+            // value = seconds (matches block label "Move for N seconds").
+            // Default 2 → 2 s × 1 m/s = 2 m — clearly visible in the simulator.
+            const duration = durationBlock ? Number(durationBlock.getFieldValue('NUM')) || 2 : 2;
 
             const typeMap: Record<string, SimulatorCommand['type']> = {
                 'forward': 'move_forward',

@@ -2,7 +2,12 @@ export type CommandType = 'takeoff' | 'land' | 'emergency_stop' | 'move_forward'
 
 export interface SimulatorCommand {
     type: CommandType;
-    value?: number; // Distance in cm or degrees
+    // value semantics by command type:
+    //   movement (move_*): seconds of flight at DRONE_SPEED m/s → distance = value × DRONE_SPEED
+    //   turn_left / turn_right: degrees
+    //   delay: milliseconds
+    //   takeoff / land / emergency_stop: unused (may be omitted)
+    value?: number;
     duration?: number; // ms to execute
 }
 
