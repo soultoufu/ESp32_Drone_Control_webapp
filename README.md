@@ -1,6 +1,6 @@
 # 🛸 ESP32 Drone Controller - Visual Programming Web App
 
-A modern web-based visual programming interface for controlling ESP32-powered drones using Google Blockly. Design flight plans with drag-and-drop blocks, test them in a 3D simulator, and upload directly to your drone via USB.
+A modern web-based visual programming interface for controlling Raspberry Pi-powered drones using Google Blockly. Design flight plans with drag-and-drop blocks, test them in a 3D simulator, and upload directly to your drone via USB.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
