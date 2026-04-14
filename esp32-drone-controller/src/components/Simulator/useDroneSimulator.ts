@@ -23,7 +23,7 @@ export const useDroneSimulator = () => {
 
         // Time scaling factor — controls how fast sim time passes vs Blockly time.
         // A factor of 4 means 10s in Blockly ≈ 2.5s in the simulator.
-        const SIM_TIME_SCALE = 4;
+        const SIM_TIME_SCALE = 0.5;
 
         return new Promise<void>((resolve) => {
             // For delay commands, value is already in ms from simGenerator.
