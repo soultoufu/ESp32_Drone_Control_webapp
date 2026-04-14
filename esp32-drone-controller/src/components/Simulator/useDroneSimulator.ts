@@ -39,8 +39,11 @@ export const useDroneSimulator = () => {
             // Bug 5 fix: emergency_stop is instantaneous — drop and resolve immediately
             if (type === 'emergency_stop') {
                 const nextPos: [number, number, number] = [startPos[0], 0, startPos[2]];
+                // Also level out pitch and roll on emergency stop
+                const levelRot: [number, number, number] = [0, startRot[1], 0];
                 positionRef.current = nextPos;
-                setState({ position: nextPos, rotation: startRot, isFlying: false });
+                rotationRef.current = levelRot;
+                setState({ position: nextPos, rotation: levelRot, isFlying: false });
                 resolve();
                 return;
             }
@@ -53,33 +56,56 @@ export const useDroneSimulator = () => {
                 const nextPos = [...startPos] as [number, number, number];
                 const nextRot = [...startRot] as [number, number, number];
 
-                // Bug 11 fix: read current yaw for body-relative movement
+                // Read current yaw for body-relative movement
                 const yaw = startRot[1];
+
+                // Drone physics — pitch & roll tilt during transit.
+                // Real multirotors pitch nose-down to accelerate forward and
+                // roll to strafe left/right. We model this with a bell-curve
+                // (sin(π·progress)) so the drone tilts into the move and
+                // levels back to 0 by the time the command completes.
+                // rotation[0] = pitch  (+ = nose down / forward tilt)
+                // rotation[1] = yaw    (heading — unchanged here)
+                // rotation[2] = roll   (+ = right wing down / right tilt)
+                const MAX_TILT = 0.26; // ~15 degrees in radians
+                const tiltEnvelope = Math.sin(Math.PI * progress); // 0→peak→0
 
                 switch (type) {
                     case 'takeoff':
                         nextPos[1] = progress * 1; // Ascend to 1m
+                        // Slight nose-up on ascent (like a real drone spinning up)
+                        nextRot[0] = -MAX_TILT * 0.3 * tiltEnvelope;
                         break;
                     case 'land':
                         // Bug 3 fix: land from actual current altitude, not hardcoded 1m
                         nextPos[1] = startPos[1] * (1 - progress);
+                        // Slight nose-down on descent
+                        nextRot[0] = MAX_TILT * 0.3 * tiltEnvelope;
                         break;
                     case 'move_forward':
                         // Bug 11 fix: apply yaw rotation to movement vector
                         nextPos[0] = startPos[0] - Math.sin(yaw) * progress * distanceMeter;
                         nextPos[2] = startPos[2] - Math.cos(yaw) * progress * distanceMeter;
+                        // Pitch nose down to fly forward
+                        nextRot[0] = MAX_TILT * tiltEnvelope;
                         break;
                     case 'move_backward':
                         nextPos[0] = startPos[0] + Math.sin(yaw) * progress * distanceMeter;
                         nextPos[2] = startPos[2] + Math.cos(yaw) * progress * distanceMeter;
+                        // Pitch nose up to fly backward
+                        nextRot[0] = -MAX_TILT * tiltEnvelope;
                         break;
                     case 'move_left':
                         nextPos[0] = startPos[0] - Math.cos(yaw) * progress * distanceMeter;
                         nextPos[2] = startPos[2] + Math.sin(yaw) * progress * distanceMeter;
+                        // Roll left wing down to strafe left
+                        nextRot[2] = -MAX_TILT * tiltEnvelope;
                         break;
                     case 'move_right':
                         nextPos[0] = startPos[0] + Math.cos(yaw) * progress * distanceMeter;
                         nextPos[2] = startPos[2] - Math.sin(yaw) * progress * distanceMeter;
+                        // Roll right wing down to strafe right
+                        nextRot[2] = MAX_TILT * tiltEnvelope;
                         break;
                     case 'move_up':
                         // Bug 2 fix: move_up was missing

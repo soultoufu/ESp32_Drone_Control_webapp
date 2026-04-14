@@ -23,7 +23,12 @@ export const SimulatorPanel: React.FC<Props> = ({ state, isExecuting, onReset })
     const y = -droneForward * 100; // Negative because CSS Y goes down
     const z = droneHeight * 100;
 
-    const rotZ = -rotation[1] * (180 / Math.PI); // Convert radians to degrees
+    // rotation[0] = pitch (nose down = positive → rotateX positive tilts top toward viewer)
+    // rotation[1] = yaw   (heading, applied as rotateZ in this top-down CSS scene)
+    // rotation[2] = roll  (right wing down = positive → rotateY negative in CSS)
+    const rotPitch = rotation[0] * (180 / Math.PI);  // degrees, nose-down positive
+    const rotYaw   = -rotation[1] * (180 / Math.PI); // degrees, heading
+    const rotRoll  = rotation[2] * (180 / Math.PI);  // degrees, right wing down positive
 
     return (
         <div className="sim-scene-container">
@@ -49,7 +54,9 @@ export const SimulatorPanel: React.FC<Props> = ({ state, isExecuting, onReset })
                     <div
                         className="sim-drone"
                         style={{
-                            transform: `translate3d(${x}px, ${y}px, ${z}px) rotateZ(${rotZ}deg)`
+                            // Apply translation first, then yaw (heading), then pitch and roll tilt.
+                            // Order matters in CSS transforms: rightmost applied first.
+                            transform: `translate3d(${x}px, ${y}px, ${z}px) rotateZ(${rotYaw}deg) rotateX(${rotPitch}deg) rotateY(${rotRoll}deg)`
                         }}
                     >
                         {/* Visual Representation of Drone Body */}
@@ -91,7 +98,9 @@ export const SimulatorPanel: React.FC<Props> = ({ state, isExecuting, onReset })
                 <div>X: {droneX.toFixed(2)}m</div>
                 <div>Y: {droneForward.toFixed(2)}m</div>
                 <div>Alt: {droneHeight.toFixed(2)}m</div>
-                <div>Hdg: {rotZ.toFixed(0)}°</div>
+                <div>Hdg: {rotYaw.toFixed(0)}°</div>
+                <div>Pitch: {rotPitch.toFixed(1)}°</div>
+                <div>Roll: {rotRoll.toFixed(1)}°</div>
                 {isExecuting && <div style={{ color: '#4ade80' }}>▶ Running...</div>}
             </div>
         </div>
