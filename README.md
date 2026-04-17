@@ -1,4 +1,4 @@
-# 🛸 ESP32 Drone Controller - Visual Programming Web App
+# 🛸 Raspberry Pi / ESP32 Drone Controller - Visual Programming Web App
 
 A modern web-based visual programming interface for controlling Raspberry Pi-powered drones using Google Blockly. Design flight plans with drag-and-drop blocks, test them in a 3D simulator, and upload directly to your drone via USB.
 
@@ -24,7 +24,7 @@ A modern web-based visual programming interface for controlling Raspberry Pi-pow
 - **Safe Testing**: Validate complex maneuvers without risking your drone
 
 ### 🔌 Hardware Integration
-- **WebSerial API**: Direct USB connection to ESP32 (no drivers needed on supported browsers)
+- **WebSerial API**: Direct USB connection to your drone controller (no drivers needed on supported browsers)
 - **One-Click Upload**: Deploy MicroPython code directly to your drone
 - **Live Telemetry**: Real-time data streaming from your drone during flight
 - **Connection Status**: Visual indicators for device connectivity
@@ -32,13 +32,13 @@ A modern web-based visual programming interface for controlling Raspberry Pi-pow
 ### 📊 Telemetry Dashboard
 - **Live Data Stream**: Monitor your drone's status in real-time
 - **Debug Console**: View logs and debugging information
-- **Connection Health**: Track communication quality with your ESP32
+- **Connection Health**: Track communication quality with your controller
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - **Node.js** 18+ and npm
-- **ESP32-based drone** with MicroPython firmware
+- **Raspberry Pi / ESP32-based drone** with MicroPython firmware
 - **Modern browser** with WebSerial support (Chrome, Edge, Opera)
 
 ### Installation
@@ -70,8 +70,8 @@ npm run preview
 ## 📖 Usage Guide
 
 ### 1️⃣ Connect Your Drone
-1. Plug your ESP32 drone into your computer via USB
-2. Click **"Connect ESP32 (USB)"** in the header
+1. Plug your drone controller (Raspberry Pi or ESP32) into your computer via USB
+2. Click **"Connect (USB)"** in the header
 3. Select the correct serial port from the browser dialog
 4. Wait for the green "Device Connected" status indicator
 
@@ -89,7 +89,7 @@ npm run preview
 
 ### 4️⃣ Upload & Fly
 1. Once satisfied with your program, click **"Upload & Run 🚀"**
-2. Your code will be transferred to the ESP32
+2. Your code will be transferred to the controller
 3. Monitor execution via the **Telemetry** tab
 4. Watch your drone execute the flight plan!
 
