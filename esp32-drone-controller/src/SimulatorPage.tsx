@@ -24,12 +24,7 @@ export const SimulatorPage: React.FC<SimulatorPageProps> = ({
     timeScale,
     onTimeScaleChange
 }) => {
-    // Auto-run simulation when page loads with pending commands
-    React.useEffect(() => {
-        if (pendingCommands.length > 0 && !isExecuting) {
-            onRunSimulation(pendingCommands);
-        }
-    }, []); // Only run once on mount
+    // Removed auto-run useEffect to allow for manual start and speed adjustment
 
     // Find the matching preset label for the current time scale
     const activePreset = TIME_SCALE_PRESETS.find(p => p.value === timeScale);
@@ -142,51 +137,76 @@ export const SimulatorPage: React.FC<SimulatorPageProps> = ({
                         })}
                     </div>
 
-                    {/* Replay button */}
+                    {/* Start / Stop button */}
                     <button
                         onClick={() => {
-                            onReset();
-                            if (pendingCommands.length > 0) {
-                                setTimeout(() => onRunSimulation(pendingCommands), 100);
+                            if (isExecuting) {
+                                onReset();
+                            } else {
+                                if (pendingCommands.length > 0) {
+                                    // If drone has moved, reset before starting again
+                                    const isAtOrigin = state.position.every(v => Math.abs(v) < 0.01);
+                                    if (!isAtOrigin) {
+                                        onReset();
+                                        setTimeout(() => onRunSimulation(pendingCommands), 50);
+                                    } else {
+                                        onRunSimulation(pendingCommands);
+                                    }
+                                }
                             }
                         }}
-                        disabled={isExecuting}
                         style={{
-                            background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
-                            border: '1px solid rgba(56, 189, 248, 0.35)',
-                            color: '#7dd3fc',
-                            padding: '0.5rem 1rem',
+                            background: isExecuting
+                                ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'white',
+                            padding: '0.5rem 1.25rem',
                             borderRadius: '8px',
-                            cursor: isExecuting ? 'not-allowed' : 'pointer',
-                            opacity: isExecuting ? 0.5 : 1,
+                            cursor: 'pointer',
                             fontSize: '0.9rem',
-                            fontWeight: 500,
-                            transition: 'all 0.15s ease'
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.15s ease',
+                            boxShadow: isExecuting
+                                ? '0 0 15px rgba(239, 68, 68, 0.3)'
+                                : '0 0 15px rgba(16, 185, 129, 0.3)'
                         }}
                     >
-                        🔁 Replay
+                        {isExecuting ? (
+                            <>
+                                <span style={{ fontSize: '1.2rem' }}>⏹</span> Stop Simulation
+                            </>
+                        ) : (
+                            <>
+                                <span style={{ fontSize: '1.2rem' }}>▶</span> Start Simulation
+                            </>
+                        )}
                     </button>
 
-                    <button
-                        onClick={onReset}
-                        disabled={isExecuting}
-                        style={{
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            border: '1px solid rgba(239, 68, 68, 0.35)',
-                            color: '#fca5a5',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '8px',
-                            cursor: isExecuting ? 'not-allowed' : 'pointer',
-                            opacity: isExecuting ? 0.5 : 1,
-                            fontSize: '0.9rem',
-                            fontWeight: 500,
-                            transition: 'all 0.15s ease'
-                        }}
-                    >
-                        🔄 Reset Position
-                    </button>
+                    {!isExecuting && (
+                        <button
+                            onClick={onReset}
+                            style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                fontWeight: 500,
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            🔄 Reset
+                        </button>
+                    )}
                 </div>
             </header>
+
 
             {/* 3D Simulator (Full Screen) */}
             <div style={{ flex: 1, position: 'relative' }}>
@@ -195,6 +215,59 @@ export const SimulatorPage: React.FC<SimulatorPageProps> = ({
                     isExecuting={isExecuting}
                     onReset={onReset}
                 />
+
+                {/* Central action overlay for better visibility */}
+                {!isExecuting && state.position[1] < 0.01 && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '1.5rem',
+                        pointerEvents: 'none'
+                    }}>
+                        <button
+                            onClick={() => onRunSimulation(pendingCommands)}
+                            style={{
+                                pointerEvents: 'auto',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%)',
+                                color: 'white',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                padding: '1.25rem 2.5rem',
+                                borderRadius: '100px',
+                                fontSize: '1.25rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.4)',
+                                backdropFilter: 'blur(8px)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                            }}
+                        >
+                            <span style={{ fontSize: '1.6rem' }}>🚀</span> Start Mission
+                        </button>
+                        <p style={{
+                            color: 'rgba(255, 255, 255, 0.6)',
+                            fontSize: '0.9rem',
+                            fontWeight: 500,
+                            margin: 0,
+                            textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                            background: 'rgba(0,0,0,0.3)',
+                            padding: '0.4rem 1rem',
+                            borderRadius: '20px',
+                            backdropFilter: 'blur(4px)'
+                        }}>
+                            Adjust speeds in the header before launching
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Status Bar — improved contrast and richer status info */}

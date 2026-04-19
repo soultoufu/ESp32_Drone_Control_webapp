@@ -46,8 +46,8 @@ export const useDroneSimulator = () => {
             // For delay commands, value is already in ms from simGenerator.
             // For movement commands, scale duration proportionally to distance.
             const duration = type === 'delay'
-                ? value / SIM_TIME_SCALE
-                : Math.max(300, (distanceMeter * 1000) / SIM_TIME_SCALE);
+                ? value * SIM_TIME_SCALE
+                : Math.max(300 * SIM_TIME_SCALE, (distanceMeter * 1000) * SIM_TIME_SCALE);
 
             // Bug 1 fix: read from refs, not from stale closure over state
             const startPos = [...positionRef.current] as [number, number, number];
