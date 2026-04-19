@@ -55,7 +55,7 @@ function App() {
     localStorage.getItem('droneWorkspaceXml') || '<xml xmlns="http://www.w3.org/1999/xhtml"></xml>'
   );
 
-  const { state: simState, isExecuting: isSimulating, runSimulation, resetSimulation } = useDroneSimulator();
+  const { state: simState, isExecuting: isSimulating, timeScale, setTimeScale, runSimulation, resetSimulation } = useDroneSimulator();
 
   // Wire up WebSocketManager callbacks on mount (Bug 8 fix: disconnect detection)
   useEffect(() => {
@@ -215,6 +215,8 @@ function App() {
           onBack={handleBackFromSimulator}
           onRunSimulation={runSimulation}
           pendingCommands={pendingCommands}
+          timeScale={timeScale}
+          onTimeScaleChange={setTimeScale}
         />
       )}
 

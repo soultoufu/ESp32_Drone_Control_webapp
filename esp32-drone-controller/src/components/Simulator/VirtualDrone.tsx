@@ -23,35 +23,72 @@ export const VirtualDrone = ({ position, rotation }: VirtualDroneProps) => {
 
     return (
         <group ref={meshRef}>
-            {/* Main Body */}
+            {/* Main Body — brighter, more vivid blue with stronger emissive glow */}
             <mesh castShadow>
                 <boxGeometry args={[0.4, 0.1, 0.4]} />
-                <meshStandardMaterial color="#3b82f6" roughness={0.3} metalness={0.8} />
+                <meshStandardMaterial
+                    color="#60a5fa"
+                    roughness={0.2}
+                    metalness={0.9}
+                    emissive="#3b82f6"
+                    emissiveIntensity={0.15}
+                />
             </mesh>
 
-            {/* Arms */}
+            {/* Arms — lighter for better contrast */}
             <mesh rotation={[0, Math.PI / 4, 0]} castShadow>
                 <boxGeometry args={[0.6, 0.05, 0.05]} />
-                <meshStandardMaterial color="#1e293b" />
+                <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.3} />
             </mesh>
             <mesh rotation={[0, -Math.PI / 4, 0]} castShadow>
                 <boxGeometry args={[0.6, 0.05, 0.05]} />
-                <meshStandardMaterial color="#1e293b" />
+                <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.3} />
             </mesh>
 
-            {/* Rotors (Placeholders) */}
+            {/* Rotors — brighter with emissive ring for visibility */}
             {[[-0.3, 0.3], [0.3, 0.3], [0.3, -0.3], [-0.3, -0.3]].map((pos, i) => (
-                <mesh key={i} position={[pos[0], 0.08, pos[1]]}>
-                    <cylinderGeometry args={[0.15, 0.15, 0.01, 16]} />
-                    <meshStandardMaterial color="#94a3b8" transparent opacity={0.6} />
-                </mesh>
+                <group key={i} position={[pos[0], 0.08, pos[1]]}>
+                    {/* Rotor disc */}
+                    <mesh>
+                        <cylinderGeometry args={[0.15, 0.15, 0.01, 16]} />
+                        <meshStandardMaterial
+                            color="#cbd5e1"
+                            transparent
+                            opacity={0.4}
+                        />
+                    </mesh>
+                    {/* Rotor ring glow */}
+                    <mesh>
+                        <torusGeometry args={[0.15, 0.008, 8, 24]} />
+                        <meshStandardMaterial
+                            color="#38bdf8"
+                            emissive="#38bdf8"
+                            emissiveIntensity={0.6}
+                            transparent
+                            opacity={0.8}
+                        />
+                    </mesh>
+                </group>
             ))}
 
-            {/* Front Indicator (Camera/LED) */}
+            {/* Front Indicator (Camera/LED) — brighter and more visible */}
             <mesh position={[0, 0, -0.21]}>
                 <boxGeometry args={[0.1, 0.05, 0.02]} />
-                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={2} />
+                <meshStandardMaterial
+                    color="#ef4444"
+                    emissive="#ef4444"
+                    emissiveIntensity={3}
+                />
             </mesh>
+
+            {/* Drone point light — creates a glow around the drone for visibility */}
+            <pointLight
+                position={[0, 0.15, 0]}
+                color="#38bdf8"
+                intensity={0.5}
+                distance={2}
+                decay={2}
+            />
         </group>
     );
 };

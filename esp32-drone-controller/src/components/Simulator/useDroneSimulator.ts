@@ -1,4 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
+
+// Available time scale presets for the UI
+export const TIME_SCALE_PRESETS = [
+    { label: '0.25×', value: 4 },
+    { label: '0.5×', value: 2 },
+    { label: '1×', value: 1 },
+    { label: '2×', value: 0.5 },
+    { label: '4×', value: 0.25 }
+] as const;
 import type { SimulatorCommand, DroneState } from '../../types/simulator';
 
 export const useDroneSimulator = () => {
@@ -9,12 +18,14 @@ export const useDroneSimulator = () => {
     });
 
     const [isExecuting, setIsExecuting] = useState(false);
+    const [timeScale, setTimeScale] = useState(1); // 1 = real-time, <1 = faster, >1 = slower
 
     // Bug 1 fix: use refs for authoritative position/rotation so sequential
     // commands always start from where the previous command left the drone,
     // not from the stale closure value captured at callback creation time.
     const positionRef = useRef<[number, number, number]>([0, 0, 0]);
     const rotationRef = useRef<[number, number, number]>([0, 0, 0]);
+    const timeScaleRef = useRef(1);
 
     // Bug 1 fix: no deps — reads from refs which are always current
     const executeCommand = useCallback(async (command: SimulatorCommand) => {
@@ -28,8 +39,8 @@ export const useDroneSimulator = () => {
         const distanceMeter = value * DRONE_SPEED;
 
         // Time scaling factor — controls how fast sim time passes vs Blockly time.
-        // A factor of 4 means 10s in Blockly ≈ 2.5s in the simulator.
-        const SIM_TIME_SCALE = 0.5;
+        // Read from the ref so the animation loop always uses the latest value.
+        const SIM_TIME_SCALE = timeScaleRef.current;
 
         return new Promise<void>((resolve) => {
             // For delay commands, value is already in ms from simGenerator.
@@ -178,9 +189,17 @@ export const useDroneSimulator = () => {
         setIsExecuting(false);
     }, []);
 
+    // Keep the ref in sync with the state so the animation loop reads the latest value
+    const handleSetTimeScale = useCallback((scale: number) => {
+        timeScaleRef.current = scale;
+        setTimeScale(scale);
+    }, []);
+
     return {
         state,
         isExecuting,
+        timeScale,
+        setTimeScale: handleSetTimeScale,
         runSimulation,
         resetSimulation
     };
